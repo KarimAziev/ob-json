@@ -6,7 +6,7 @@
 ;; URL: https://github.com/KarimAziev/ob-json
 ;; Version: 0.1.0
 ;; Keywords: outlines
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((emacs "27.1"))
 ;; SPDX-License-Identifier: GPL-3.0-or-later
 
 ;; This file is NOT part of GNU Emacs.
@@ -45,10 +45,37 @@
 (defvar json-false)
 (declare-function json-read-from-string "json")
 
+(defmacro ob-json--defvar (sym &rest body)
+  "Define a namespaced variable with markdown suffix.
+
+It is used to supress package lint warnings about a non-standard separator
+and package prefix.
+
+Argument SYM is the symbol to define as a variable.
+
+Remaining arguments BODY are the forms that make up the body of the variable
+definition."
+  (declare (doc-string 3)
+           (indent 2))
+  `(defvar ,(intern (concat (symbol-name sym) ":json"))
+     ,@body))
+
+
+(ob-json--defvar org-babel-header-args '((object-type .
+                                          ((alist
+                                            plist
+                                            hash-table)))
+                                         (array-type        . ((vector array
+                                                                list)))
+                                         (null-object . :any)
+                                         (false-object . :any)
+                                         (flatten . :any))
+  "JSON specific header arguments.")
+
 (defvar org-babel-default-header-args:json '((:object-type . "alist")
                                              (:array-type . "vector")
-                                             (:null-object . ":null")
-                                             (:false-object . ":false"))
+                                             (:null-object . "nil")
+                                             (:false-object . "nil"))
   "Default header arguments for JSON code blocks in Org Babel.
 :object-type TYPE -- use TYPE to represent JSON objects.
   TYPE can be `alist' (the default), `hash-table', or `plist'.
@@ -58,9 +85,9 @@
 :array-type TYPE -- use TYPE to represent JSON arrays.
   TYPE can be `vector' (the default) or `list'. `array' is the alias of `vector'
 :null-object OBJ -- use OBJ to represent a JSON null value.
-  It defaults to `:null'.
+  It defaults to nil.
 :false-object OBJ -- use OBJ to represent a JSON false value.
-  It defaults to `:false'.")
+  It defaults to nil.")
 
 (defun ob-json--parse-string (str &optional object-type array-type null-object
                                   false-object)
@@ -88,8 +115,8 @@ represent a JSON false value.  It defaults to `:false'."
                            ('list 'list)
                            ('vector 'array)
                            (_ 'array))
-                         :null-object (or null-object :null)
-                         :false-object (or false-object :false))
+                         :null-object (or null-object nil)
+                         :false-object (or false-object nil))
     (require 'json)
     (let ((json-object-type (or object-type 'alist))
           (json-array-type
@@ -97,8 +124,8 @@ represent a JSON false value.  It defaults to `:false'."
              ('list 'list)
              ('array 'vector)
              (_ 'vector)))
-          (json-null (or null-object :null))
-          (json-false (or false-object :false)))
+          (json-null (or null-object nil))
+          (json-false (or false-object nil)))
       (json-read-from-string str))))
 
 (defun ob-json--symbol-name-safe (symb)
@@ -171,15 +198,35 @@ PARENT-KEY is used for constructing keys."
 Argument DATA is the JSON data to be converted into a table."
   (let ((result (ob-json--flatten-object data)))
     (mapcar (lambda (it)
-              (print it)
-              (cond ((or (atom it)
-                         (and (consp it)
-                              (listp (cdr it))))
+              (cond ((stringp it)
+                     (ob-json--stringify it))
+                    ((or (atom it)
+                         (and (proper-list-p it)
+                              (= 1 (length it))
+                              (atom (car it))))
                      it)
                     ((consp it)
                      (list (car it)
-                           (cdr it)))))
-            (ob-json--stringify result))))
+                           (ob-json--stringify (cdr it))))))
+            result)))
+
+(defun ob-json--stringify-alist-values (result)
+  "Convert values in RESULT alist to their string representations recursively.
+
+Argument RESULT is an alist whose values need to be stringified."
+  (mapcar (lambda (it)
+            (cond ((stringp it)
+                   (ob-json--stringify it))
+                  ((or (atom it)
+                       (and (proper-list-p it)
+                            (= 1 (length it))
+                            (atom (car it))))
+                   it)
+                  ((consp it)
+                   (list (car it)
+                         (ob-json--stringify (cdr it))))))
+          result))
+
 
 (defun ob-json--stringify (item)
   "Convert various data types to their string representations recursively.
@@ -190,9 +237,9 @@ vector, list, cons cell, symbol, or any other type."
     ((pred not)
      item)
     ((pred stringp)
-     (prin1-to-string item))
-    ((pred numberp)
-     item)
+     (let ((print-level nil)
+           (print-length nil))
+       (prin1-to-string item)))
     ((pred vectorp)
      (apply #'vector (mapcar #'ob-json--stringify (append item nil))))
     ((pred proper-list-p)
@@ -201,9 +248,8 @@ vector, list, cons cell, symbol, or any other type."
                  (atom (cdr item))))
      (cons (car item)
            (ob-json--stringify (cdr item))))
-    ((guard (and item (symbolp item)))
-     item)
     (_ item)))
+
 
 
 (defun org-babel-expand-body:json (body params &optional _processed-params)
@@ -228,6 +274,50 @@ Emacs-lisp table, otherwise return the results as a string."
                                          (replace-regexp-in-string
                                           "'" "\"" res)))))))
      results)))
+
+(defun ob-json--json-plist-p (thing)
+  "Check if THING is a valid JSON property list.
+
+Argument THING is the object to be checked if it is a JSON property list."
+  (while (and (keywordp (car-safe thing))
+              (consp (cdr thing))
+              (setq thing (cddr thing))))
+  (null thing))
+
+(defun ob-json--to-table (item)
+  "Convert ITEM into a table format based on its type.
+
+Argument ITEM is the data structure to be converted into a table."
+  (cond ((not item)
+         item)
+        ((stringp item)
+         (let ((print-level nil)
+               (print-length nil))
+           (prin1-to-string item)))
+        ((ob-json--json-plist-p item)
+         (mapcar (lambda (key)
+                   (let ((val (plist-get item key)))
+                     (list key (ob-json--to-table val))))
+                 (cl-loop for (key _val) on item by #'cddr collect key)))
+        ((vectorp item)
+         (apply #'vector (mapcar #'ob-json--to-table
+                                 item)))
+        ((and (consp item)
+              (atom (cdr item)))
+         (list (car item)
+               (ob-json--to-table (cdr item))))
+        ((proper-list-p item)
+         (mapcar #'ob-json--to-table item))
+        ((hash-table-p item)
+         (let ((alist nil))
+           (maphash (lambda (k v)
+                      (push (list k (ob-json--to-table v))
+                            alist))
+                    item)
+           alist))
+        (t item)))
+
+
 (defun org-babel-execute:json (body params)
   "Return the JSON BODY as is without any modifications.
 
@@ -237,18 +327,23 @@ Optional argument _PARAMS is a placeholder for additional parameters."
   (let* ((expanded-body (org-babel-expand-body:json body params))
          (result-params (cdr (assq :result-params params)))
          (wrap (cdr (assq :wrap params)))
+         (flatten (and (cdr (assq :flatten params))
+                       (not (equal (cdr (assq :flatten params)) "nil"))))
          (tablep (member "table" result-params))
          (result
           (cond ((or tablep
-                     (member "code" result-params)
                      (equal "src emacs-lisp" wrap)
                      (equal "src elisp" wrap))
                  (let* ((json-params (mapcar (pcase-lambda (`(,k . ,v))
                                                (cons k
-                                                     (if (stringp v)
-                                                         (intern
-                                                          v)
-                                                       v)))
+                                                     (cond ((equal v "nil")
+                                                            nil)
+                                                           ((equal v "t")
+                                                            t)
+                                                           ((stringp v)
+                                                            (intern
+                                                             v))
+                                                           (t v))))
                                              (seq-filter
                                               (pcase-lambda (`(,k . ,_v))
                                                 (memq k
@@ -263,27 +358,46 @@ Optional argument _PARAMS is a placeholder for additional parameters."
                                              :null-object
                                              :false-object)))
                         (res (apply #'ob-json--parse-string
-                                    expanded-body json-args)))
+                                    expanded-body (if (and tablep
+                                                           (eq (car json-args)
+                                                               'hash-table))
+                                                      (append (list 'alist)
+                                                              (seq-drop
+                                                               json-args 1))
+                                                    json-args))))
                    (unless (member "discard" result-params)
-                     (if
-                         (or
-                          (member "scalar" result-params)
-                          (member "verbatim" result-params)
-                          (member "html" result-params)
-                          (member "code" result-params)
-                          (member "pp" result-params)
-                          (member "file" result-params)
-                          (and
-                           (or
-                            wrap
-                            (member "output" result-params)
-                            (member "raw" result-params)
-                            (member "org" result-params)
-                            (member "drawer" result-params))
-                           (not
-                            (member "table" result-params))))
-                         (format "'%s" (ob-json--stringify res))
-                       (ob-json--elisp-json-to-flatten-table res)))))
+                     (cond ((or
+                             (member "scalar" result-params)
+                             (member "verbatim" result-params)
+                             (member "html" result-params)
+                             (member "code" result-params)
+                             (member "pp" result-params)
+                             (member "file" result-params)
+                             (and
+                              (or
+                               wrap
+                               (member "output" result-params)
+                               (member "raw" result-params)
+                               (member "org" result-params)
+                               (member "drawer" result-params))
+                              (not
+                               (member "table" result-params))))
+                            (format (if (vectorp res) "%s" "'%s")
+                                    (if flatten
+                                        (ob-json--flatten-object
+                                         (ob-json--stringify res))
+                                      (ob-json--stringify res))))
+                           (t
+                            (org-babel-reassemble-table
+                             (ob-json--elisp-json-to-flatten-table res)
+                             (org-babel-pick-name (cdr (assq :colname-names
+                                                             params))
+                                                  (cdr (assq :colnames
+                                                             params)))
+                             (org-babel-pick-name (cdr (assq :rowname-names
+                                                             params))
+                                                  (cdr (assq :rownames
+                                                             params)))))))))
                 (t
                  (org-babel-result-cond result-params
                    (ob-json--read-results expanded-body)
