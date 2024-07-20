@@ -1,0 +1,417 @@
+#+OPTIONS: ^:nil tags:nil num:nil
+
+* About
+
+=ob-json= is an Org Babel extension for evaluating JSON data within Org-mode blocks. This package adds support for JSON code blocks to Org Babel, enabling JSON parsing, manipulation, and integration into Org documents.
+
+- Supports JSON code block evaluation in Org documents.
+- Flexible representation of JSON objects and arrays in various Emacs Lisp data structures.
+- Customizable header arguments to control JSON parsing behavior.
+- Flattens JSON objects into a tabular format for easy presentation and manipulation.
+
+* Table of Contents                                   :TOC_2_gh:QUOTE:
+#+BEGIN_QUOTE
+- [[#about][About]]
+- [[#requirements][Requirements]]
+- [[#installation][Installation]]
+  - [[#with-use-package-and-straightel][With use-package and straight.el]]
+  - [[#manual-installation][Manual installation]]
+- [[#supported-header-arguments][Supported header arguments]]
+  - [[#specific-to-ob-json][Specific to =ob-json=]]
+  - [[#common-header-args][Common header args]]
+- [[#examples][Examples]]
+  - [[#table][Table]]
+  - [[#plist-table][Plist table]]
+  - [[#setting-custom-null-and-false-objects][Setting custom null and false objects]]
+  - [[#custom-column-names][Custom column names]]
+- [[#emacs-lisp][Emacs Lisp]]
+  - [[#to-alist][To alist]]
+  - [[#to-plist][To plist]]
+  - [[#to-hash-table][To hash table]]
+  - [[#flattening][Flattening]]
+#+END_QUOTE
+
+* Requirements
+
+| Name  | Version |
+|-------+---------|
+| Emacs |    27.1 |
+
+* Installation
+
+** With use-package and straight.el
+#+BEGIN_SRC elisp :eval no
+(use-package ob-json
+  :after (org)
+  :demand t
+  :straight (:repo "KarimAziev/ob-json"
+             :type git
+             :host github
+             :flavor nil))
+#+END_SRC
+
+** Manual installation
+
+Download the source code and put it wherever you like, e.g., into =~/.emacs.d/ob-json/=.
+
+#+BEGIN_SRC shell :eval no
+git clone https://github.com/KarimAziev/ob-json.git ~/.emacs.d/ob-json/
+#+END_SRC
+
+Add the downloaded directory to the load path:
+
+#+BEGIN_SRC elisp :eval no
+(add-to-list 'load-path "~/.emacs.d/ob-json/")
+(require 'ob-json)
+#+END_SRC
+
+* Supported header arguments
+
+** Specific to =ob-json=
+
+Currently, =ob-json= supports the following header arguments specific to JSON evaluation:
+
+- =:object-type=: Controls representation of JSON objects (`alist`, `hash-table`, or `plist`).
+- =:array-type=: Controls representation of JSON arrays (`vector`, `list`).
+- =:null-object=: Specifies the value to represent a JSON null (default: =nil=).
+- =:false-object=: Specifies the value to represent a JSON false (default: =nil=).
+- =:flatten=: Flattens nested JSON objects into a tabular format if set to true.
+
+=array= is an alias of =vector=.
+
+** Common header args
+
+In addition to the specific header arguments, =ob-json= also supports the following common header arguments used in Org-mode:
+
+- =:results= with =table= as a value will parse the JSON to elisp, and then to table.
+- =:wrap=: with values =emacs-lisp= or =elisp= will parse the JSON and output the result as an Emacs Lisp block.
+
+These common arguments control how the results of the code block execution should be formatted or wrapped.
+
+* Examples
+
+** Table
+
+With header argument =:results table=, =ob-json= will produce a *two-column* table, where the first column represents the JSON keys as property paths and the second column represents the corresponding values.
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :results table
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+| name                                | "example-name"                 |
+| version                             | "0.1.4"                        |
+| private                             | t                              |
+| null-property                       |                                |
+| jest.setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
+| jest.setupFiles[1]                  | "jest-localstorage-mock"       |
+| coverageThreshold.global.statements | 55                             |
+#+END_EXAMPLE
+
+** Plist table
+
+Converting a JSON object to a table while using plist for the object type:
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :results table :object-type plist
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+| :name                                | "example-name"                 |
+| :version                             | "0.1.4"                        |
+| :private                             | t                              |
+| :null-property                       |                                |
+| :jest:setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
+| :jest:setupFiles[1]                  | "jest-localstorage-mock"       |
+| :coverageThreshold:global:statements | 55                             |
+#+END_EXAMPLE
+
+** Setting custom null and false objects
+
+Using custom representations for null and false values. The resulting table will still be two-columned and flattened for readability:
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :results table :false-object false :null-object null
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+| name                                | "example-name"                 |
+| version                             | "0.1.4"                        |
+| private                             | t                              |
+| null-property                       | null                           |
+| jest.setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
+| jest.setupFiles[1]                  | "jest-localstorage-mock"       |
+| coverageThreshold.global.statements | 55                             |
+#+END_EXAMPLE
+
+** Custom column names
+
+Specifying custom column names:
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :results table :colnames '(Property Value)
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+      "global": {
+        "statements": 55
+      }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+| Property                            | Value                          |
+|-------------------------------------+--------------------------------|
+| name                                | "example-name"                 |
+| version                             | "0.1.4"                        |
+| private                             | t                              |
+| null-property                       |                                |
+| jest.setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
+| jest.setupFiles[1]                  | "jest-localstorage-mock"       |
+| coverageThreshold.global.statements | 55                             |
+#+END_EXAMPLE
+
+* Emacs Lisp
+
+To produce elisp output use =:wrap src emacs-lisp= or =:wrap src elisp=.
+
+** To alist
+
+To convert JSON to alist, use the =:object-type alist= header:
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type alist :array-type list :null-object nil :false-object nil
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+,#+BEGIN_SRC emacs-lisp
+'((name . "example-name")
+  (version . "0.1.4")
+  (private . t)
+  (null-property)
+  (jest (setupFiles "<rootDir>/test/setup-jest.js" "jest-localstorage-mock"))
+  (coverageThreshold (global (statements . 55))))
+,#+END_SRC
+#+END_EXAMPLE
+
+You can also produce a flattened result with the header argument =:flatten=.
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :wrap src emacs-lisp :flatten t
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+,#+BEGIN_SRC emacs-lisp
+'((name . "example-name")
+  (version . "0.1.4")
+  (private . t)
+  (null-property)
+  (jest.setupFiles[0] . "<rootDir>/test/setup-jest.js")
+  (jest.setupFiles[1] . "jest-localstorage-mock")
+  (coverageThreshold.global.statements . 55))
+,#+END_SRC
+#+END_EXAMPLE
+
+** To plist
+
+To convert JSON to plist, use the =:object-type plist= header:
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type plist
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+,#+BEGIN_SRC emacs-lisp
+'(:name "example-name"
+  :version "0.1.4"
+  :private t
+  :null-property nil
+  :jest (:setupFiles ["<rootDir>/test/setup-jest.js" "jest-localstorage-mock"])
+  :coverageThreshold (:global (:statements 55)))
+,#+END_SRC
+
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type plist :flatten t
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+,#+RESULTS:
+,#+BEGIN_SRC emacs-lisp
+'((:name . "example-name")
+  (:version . "0.1.4")
+  (:private . t)
+  (:null-property)
+  (:jest:setupFiles[0] . "<rootDir>/test/setup-jest.js")
+  (:jest:setupFiles[1] . "jest-localstorage-mock")
+  (:coverageThreshold:global:statements . 55))
+,#+END_SRC
+#+END_EXAMPLE
+
+** To hash table
+
+To convert JSON to a hash table, use the =:object-type hash-table= header:
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type hash-table :array-type vector :null-object nil :false-object nil :flatten
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+,#+RESULTS:
+,#+BEGIN_SRC emacs-lisp
+'#s(hash-table test equal data (name example-name version 0.1.4 private t null-property nil jest #s(hash-table test equal data (setupFiles ["<rootDir>/test/setup-jest.js" "jest-localstorage-mock"])) coverageThreshold #s(hash-table test equal data (global #s(hash-table test equal data (statements 55))))))
+,#+END_SRC
+#+END_EXAMPLE
+
+** Flattening
+
+With the header argument =:flatten=, the result will be transformed into an alist of JSON keys as property paths and corresponding values.
+
+
+#+BEGIN_EXAMPLE
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type alist :array-type vector :null-object nil :false-object nil :flatten t
+{
+  "name": "example-name",
+  "version": "0.1.4",
+  "private": true,
+  "null-property": null,
+  "jest": {
+    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
+  },
+  "coverageThreshold": {
+    "global": {
+      "statements": 55
+    }
+  }
+}
+,#+END_SRC
+
+
+,#+RESULTS:
+,#+BEGIN_SRC emacs-lisp
+'((name . "example-name")
+  (version . "0.1.4")
+  (private . t)
+  (null-property)
+  (jest.setupFiles[0] . "<rootDir>/test/setup-jest.js")
+  (jest.setupFiles[1] . "jest-localstorage-mock")
+  (coverageThreshold.global.statements . 55))
+,#+END_SRC
+#+END_EXAMPLE
