@@ -109,8 +109,10 @@ With header argument =:results table=, =ob-json= will produce a *two-column* tab
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
-,#+RESULTS:
+Results:
+
 | name                                | "example-name"                 |
 | version                             | "0.1.4"                        |
 | private                             | t                              |
@@ -118,11 +120,11 @@ With header argument =:results table=, =ob-json= will produce a *two-column* tab
 | jest.setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
 | jest.setupFiles[1]                  | "jest-localstorage-mock"       |
 | coverageThreshold.global.statements | 55                             |
-#+END_EXAMPLE
 
 ** Plist table
 
 Converting a JSON object to a table while using plist for the object type:
+
 
 #+BEGIN_EXAMPLE
 ,#+BEGIN_SRC json :results table :object-type plist
@@ -141,8 +143,10 @@ Converting a JSON object to a table while using plist for the object type:
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
-,#+RESULTS:
+Results:
+
 | :name                                | "example-name"                 |
 | :version                             | "0.1.4"                        |
 | :private                             | t                              |
@@ -150,11 +154,10 @@ Converting a JSON object to a table while using plist for the object type:
 | :jest:setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
 | :jest:setupFiles[1]                  | "jest-localstorage-mock"       |
 | :coverageThreshold:global:statements | 55                             |
-#+END_EXAMPLE
 
 ** Setting custom null and false objects
 
-Using custom representations for null and false values. The resulting table will still be two-columned and flattened for readability:
+Using custom representations for null and false values:
 
 #+BEGIN_EXAMPLE
 ,#+BEGIN_SRC json :results table :false-object false :null-object null
@@ -173,8 +176,9 @@ Using custom representations for null and false values. The resulting table will
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
-,#+RESULTS:
+Results:
 | name                                | "example-name"                 |
 | version                             | "0.1.4"                        |
 | private                             | t                              |
@@ -182,7 +186,6 @@ Using custom representations for null and false values. The resulting table will
 | jest.setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
 | jest.setupFiles[1]                  | "jest-localstorage-mock"       |
 | coverageThreshold.global.statements | 55                             |
-#+END_EXAMPLE
 
 ** Custom column names
 
@@ -205,8 +208,10 @@ Specifying custom column names:
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
-,#+RESULTS:
+Results:
+
 | Property                            | Value                          |
 |-------------------------------------+--------------------------------|
 | name                                | "example-name"                 |
@@ -216,18 +221,17 @@ Specifying custom column names:
 | jest.setupFiles[0]                  | "<rootDir>/test/setup-jest.js" |
 | jest.setupFiles[1]                  | "jest-localstorage-mock"       |
 | coverageThreshold.global.statements | 55                             |
-#+END_EXAMPLE
 
 * Emacs Lisp
 
-To produce elisp output use =:wrap src emacs-lisp= or =:wrap src elisp=.
+To produce elisp output, use =:wrap src emacs-lisp= or =:wrap src elisp=.
 
 ** To alist
 
-To convert JSON to alist, use the =:object-type alist= header:
+To convert JSON to an alist, use the =:object-type alist= header. These are the default header arguments:
 
 #+BEGIN_EXAMPLE
-,#+BEGIN_SRC json :wrap src emacs-lisp :object-type alist :array-type list :null-object nil :false-object nil
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type alist :array-type vector :null-object nil :false-object nil
 {
   "name": "example-name",
   "version": "0.1.4",
@@ -243,49 +247,20 @@ To convert JSON to alist, use the =:object-type alist= header:
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
-,#+RESULTS:
-,#+BEGIN_SRC emacs-lisp
+
+Results:
+
+#+BEGIN_SRC emacs-lisp
 '((name . "example-name")
   (version . "0.1.4")
   (private . t)
   (null-property)
   (jest (setupFiles "<rootDir>/test/setup-jest.js" "jest-localstorage-mock"))
   (coverageThreshold (global (statements . 55))))
-,#+END_SRC
-#+END_EXAMPLE
+#+END_SRC
 
-You can also produce a flattened result with the header argument =:flatten=.
-
-#+BEGIN_EXAMPLE
-,#+BEGIN_SRC json :wrap src emacs-lisp :flatten t
-{
-  "name": "example-name",
-  "version": "0.1.4",
-  "private": true,
-  "null-property": null,
-  "jest": {
-    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
-  },
-  "coverageThreshold": {
-    "global": {
-      "statements": 55
-    }
-  }
-}
-,#+END_SRC
-
-,#+RESULTS:
-,#+BEGIN_SRC emacs-lisp
-'((name . "example-name")
-  (version . "0.1.4")
-  (private . t)
-  (null-property)
-  (jest.setupFiles[0] . "<rootDir>/test/setup-jest.js")
-  (jest.setupFiles[1] . "jest-localstorage-mock")
-  (coverageThreshold.global.statements . 55))
-,#+END_SRC
-#+END_EXAMPLE
 
 ** To plist
 
@@ -308,52 +283,24 @@ To convert JSON to plist, use the =:object-type plist= header:
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
-,#+RESULTS:
-,#+BEGIN_SRC emacs-lisp
+Results:
+#+BEGIN_SRC emacs-lisp
 '(:name "example-name"
   :version "0.1.4"
   :private t
   :null-property nil
   :jest (:setupFiles ["<rootDir>/test/setup-jest.js" "jest-localstorage-mock"])
   :coverageThreshold (:global (:statements 55)))
-,#+END_SRC
-
-,#+BEGIN_SRC json :wrap src emacs-lisp :object-type plist :flatten t
-{
-  "name": "example-name",
-  "version": "0.1.4",
-  "private": true,
-  "null-property": null,
-  "jest": {
-    "setupFiles": ["<rootDir>/test/setup-jest.js", "jest-localstorage-mock"]
-  },
-  "coverageThreshold": {
-    "global": {
-      "statements": 55
-    }
-  }
-}
-,#+END_SRC
-
-,#+RESULTS:
-,#+BEGIN_SRC emacs-lisp
-'((:name . "example-name")
-  (:version . "0.1.4")
-  (:private . t)
-  (:null-property)
-  (:jest:setupFiles[0] . "<rootDir>/test/setup-jest.js")
-  (:jest:setupFiles[1] . "jest-localstorage-mock")
-  (:coverageThreshold:global:statements . 55))
-,#+END_SRC
-#+END_EXAMPLE
+#+END_SRC
 
 ** To hash table
 
 To convert JSON to a hash table, use the =:object-type hash-table= header:
 
 #+BEGIN_EXAMPLE
-,#+BEGIN_SRC json :wrap src emacs-lisp :object-type hash-table :array-type vector :null-object nil :false-object nil :flatten
+,#+BEGIN_SRC json :wrap src emacs-lisp :object-type hash-table
 {
   "name": "example-name",
   "version": "0.1.4",
@@ -371,16 +318,15 @@ To convert JSON to a hash table, use the =:object-type hash-table= header:
 ,#+END_SRC
 #+END_EXAMPLE
 
-#+BEGIN_EXAMPLE
-,#+RESULTS:
-,#+BEGIN_SRC emacs-lisp
+The result:
+
+#+BEGIN_SRC emacs-lisp
 '#s(hash-table test equal data (name example-name version 0.1.4 private t null-property nil jest #s(hash-table test equal data (setupFiles ["<rootDir>/test/setup-jest.js" "jest-localstorage-mock"])) coverageThreshold #s(hash-table test equal data (global #s(hash-table test equal data (statements 55))))))
-,#+END_SRC
-#+END_EXAMPLE
+#+END_SRC
 
 ** Flattening
 
-With the header argument =:flatten=, the result will be transformed into an alist of JSON keys as property paths and corresponding values.
+With the header argument =:flatten t=, the result will be transformed into an alist of JSON keys as property paths and corresponding values.
 
 
 #+BEGIN_EXAMPLE
@@ -400,10 +346,11 @@ With the header argument =:flatten=, the result will be transformed into an alis
   }
 }
 ,#+END_SRC
+#+END_EXAMPLE
 
+The result:
 
-,#+RESULTS:
-,#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp
 '((name . "example-name")
   (version . "0.1.4")
   (private . t)
@@ -411,5 +358,4 @@ With the header argument =:flatten=, the result will be transformed into an alis
   (jest.setupFiles[0] . "<rootDir>/test/setup-jest.js")
   (jest.setupFiles[1] . "jest-localstorage-mock")
   (coverageThreshold.global.statements . 55))
-,#+END_SRC
-#+END_EXAMPLE
+#+END_SRC
