@@ -2,7 +2,7 @@
 
 * About
 
-=ob-json= is an Org Babel extension for evaluating JSON data within Org-mode blocks. This package adds support for JSON code blocks to Org Babel, enabling JSON parsing, manipulation, and integration into Org documents.
+=ob-json= is an Org Babel extension for evaluating JSON data within Org-mode blocks.
 
 - Supports JSON code block evaluation in Org documents.
 - Flexible representation of JSON objects and arrays in various Emacs Lisp data structures.
@@ -71,13 +71,11 @@ Add the downloaded directory to the load path:
 
 Currently, =ob-json= supports the following header arguments specific to JSON evaluation:
 
-- =:object-type=: Controls representation of JSON objects (`alist`, `hash-table`, or `plist`).
-- =:array-type=: Controls representation of JSON arrays (`vector`, `list`).
+- =:object-type=: Controls the representation of JSON objects (=alist=, =hash-table=, or =plist=).
+- =:array-type=: Controls the representation of JSON arrays (=vector=, =list=). =array= is an alias for =vector=.
 - =:null-object=: Specifies the value to represent a JSON null (default: =nil=).
 - =:false-object=: Specifies the value to represent a JSON false (default: =nil=).
-- =:flatten=: Flattens nested JSON objects into a tabular format if set to true.
-
-=array= is an alias of =vector=.
+- =:flatten=: With the header argument =:flatten=, the result will be transformed into an alist of JSON keys as property paths and corresponding values. Note, it takes effect with =:wrap emacs-lisp= or =:wrap emacs-lisp elisp=.
 
 ** Common header args
 
